@@ -24,6 +24,7 @@
   let storageReady = true;
   const fields = {
     clients: [
+      { key: "code", label: "Código do cliente", type: "text", readonly: true, autoCode: true, help: "Gerado automaticamente pelo sistema." },
       { key: "company", label: "Empresa / negócio", type: "text", required: true, full: true },
       { key: "contact", label: "Pessoa de contato", type: "text" },
       { key: "segment", label: "Segmento", type: "select", options: ["Escritório contábil", "Clínica", "Advocacia", "Indústria", "Distribuição", "Transportes", "Serviços", "E-commerce", "Negócio familiar", "Outro"] },
@@ -36,7 +37,7 @@
       { key: "notes", label: "Notas comerciais", type: "textarea", full: true, help: "Não registre dados sensíveis, credenciais ou conteúdo detalhado de clientes." },
     ],
     proposals: [
-      { key: "number", label: "Referência da proposta", type: "text", required: true, help: "Use o número que consta no PDF, por exemplo PROP-2026-001." },
+      { key: "number", label: "Referência da proposta", type: "text", required: true, readonly: true, autoCode: true, help: "Gerada automaticamente; use esta referência no PDF da proposta." },
       { key: "clientId", label: "Empresa", type: "relation", entity: "clients", required: true },
       { key: "service", label: "Serviço", type: "select", required: true, options: ["Raio-X de dados", "Relatório gerencial PDF", "Dashboard Power BI local", "Edição mensal de relatório", "Outro"] },
       { key: "value", label: "Valor proposto (R$)", type: "number", min: "0", step: "0.01" },
@@ -47,6 +48,7 @@
       { key: "notes", label: "Notas e próximo movimento", type: "textarea", full: true },
     ],
     projects: [
+      { key: "code", label: "Código do projeto", type: "text", readonly: true, autoCode: true, help: "Gerado automaticamente pelo sistema." },
       { key: "title", label: "Nome do projeto", type: "text", required: true, full: true },
       { key: "clientId", label: "Empresa", type: "relation", entity: "clients", required: true },
       { key: "proposalId", label: "Proposta relacionada", type: "relation", entity: "proposals", optional: true },
@@ -72,6 +74,7 @@
 
   const columns = {
     clients: [
+      { key: "code", label: "Código", primary: true },
       { key: "company", label: "Empresa", primary: true },
       { key: "contact", label: "Contato" },
       { key: "segment", label: "Segmento" },
@@ -89,6 +92,7 @@
       { key: "status", label: "Status", badge: true },
     ],
     projects: [
+      { key: "code", label: "Código" },
       { key: "title", label: "Projeto", primary: true },
       { key: "clientId", label: "Empresa", relation: "clients" },
       { key: "status", label: "Status", badge: true },
@@ -113,7 +117,65 @@
   let noticeTimer;
 
   function emptyState() {
-    return { version: DB_VERSION, clients: [], proposals: [], projects: [], tasks: [] };
+    return { version: DB_VERSION, clients: [], proposals: [], projects: [], tasks: [], sequences: { clients: 0, proposals: {}, projects: {} } };
+  }
+
+  function normalizeSequences(data) {
+    data.sequences = data.sequences && typeof data.sequences === "object" ? data.sequences : {};
+    data.sequences.clients = Math.max(Number(data.sequences.clients || 0), ...data.clients.map((item) => Number((String(item.code || "").match(/CLI-(\d+)/) || [])[1] || 0)));
+    data.sequences.proposals = data.sequences.proposals && typeof data.sequences.proposals === "object" ? data.sequences.proposals : {};
+    data.sequences.projects = data.sequences.projects && typeof data.sequences.projects === "object" ? data.sequences.projects : {};
+    for (const year of new Set([...data.proposals.map((item) => String(item.number || "").match(/^PROP-(\d{4})-/)?.[1]), ...Object.keys(data.sequences.proposals)])) {
+      if (!year) continue;
+      const maxExisting = Math.max(0, ...data.proposals.filter((item) => String(item.number || "").startsWith("PROP-" + year + "-")).map((item) => Number((String(item.number || "").match(/-(\d+)$/) || [])[1] || 0)));
+      data.sequences.proposals[year] = Math.max(Number(data.sequences.proposals[year] || 0), maxExisting);
+    }
+    for (const year of new Set([...data.projects.map((item) => String(item.code || "").match(/^PROJ-(\d{4})-/)?.[1]), ...Object.keys(data.sequences.projects)])) {
+      if (!year) continue;
+      const maxExisting = Math.max(0, ...data.projects.filter((item) => String(item.code || "").startsWith("PROJ-" + year + "-")).map((item) => Number((String(item.code || "").match(/-(\d+)$/) || [])[1] || 0)));
+      data.sequences.projects[year] = Math.max(Number(data.sequences.projects[year] || 0), maxExisting);
+    }
+    return data;
+  }
+
+  function nextCode(entity) {
+    const year = String(new Date().getFullYear());
+    if (entity === "clients") {
+      const maxExisting = Math.max(0, ...state.clients.map((item) => Number((String(item.code || "").match(/^CLI-(\d+)$/) || [])[1] || 0)));
+      return "CLI-" + String(Math.max(Number(state.sequences?.clients || 0), maxExisting) + 1).padStart(4, "0");
+    }
+    const prefix = entity === "proposals" ? "PROP" : "PROJ";
+    const collection = state[entity] || [];
+    const key = entity === "proposals" ? "number" : "code";
+    const maxExisting = Math.max(0, ...collection.filter((item) => String(item[key] || "").startsWith(prefix + "-" + year + "-")).map((item) => Number((String(item[key] || "").match(/-(\d+)$/) || [])[1] || 0)));
+    const saved = Number(state.sequences?.[entity]?.[year] || 0);
+    return prefix + "-" + year + "-" + String(Math.max(saved, maxExisting) + 1).padStart(4, "0");
+  }
+
+  function advanceSequence(entity, code) {
+    if (entity === "clients") {
+      state.sequences.clients = Math.max(Number(state.sequences.clients || 0), Number((String(code || "").match(/^CLI-(\d+)$/) || [])[1] || 0));
+      return;
+    }
+    const prefix = entity === "proposals" ? "PROP" : "PROJ";
+    const match = String(code || "").match(new RegExp("^" + prefix + "-(\\d{4})-(\\d+)$"));
+    if (!match) return;
+    state.sequences[entity] = state.sequences[entity] || {};
+    state.sequences[entity][match[1]] = Math.max(Number(state.sequences[entity][match[1]] || 0), Number(match[2]));
+  }
+
+  function migrateLegacyCodes() {
+    let changed = false;
+    for (const client of state.clients) {
+      if (!client.code) { client.code = nextCode("clients"); advanceSequence("clients", client.code); changed = true; }
+    }
+    for (const proposal of state.proposals) {
+      if (!proposal.number) { proposal.number = nextCode("proposals"); advanceSequence("proposals", proposal.number); changed = true; }
+    }
+    for (const project of state.projects) {
+      if (!project.code) { project.code = nextCode("projects"); advanceSequence("projects", project.code); changed = true; }
+    }
+    return changed;
   }
 
   function loadState() {
@@ -122,7 +184,7 @@
       if (!raw) return emptyState();
       const parsed = JSON.parse(raw);
       validateBackup(parsed);
-      return parsed;
+      return normalizeSequences(parsed);
     } catch (error) {
       console.error("Não foi possível carregar os registros locais.", error);
       storageReady = false;
@@ -308,14 +370,17 @@
     document.querySelector("#form-eyebrow").textContent = editingId ? "EDITAR REGISTRO" : "NOVO REGISTRO";
     document.querySelector("#form-title").textContent = `${editingId ? "Editar" : "Novo"} ${entityNames[entity].toLocaleLowerCase("pt-BR")}`;
     document.querySelector("#form-fields").innerHTML = fields[entity].map((field) => {
-      const value = record[field.key] ?? "";
+      const value = record[field.key] ?? (field.autoCode && !id ? nextCode(entity) : (entity === "proposals" && field.key === "date" && !id ? today() : ""));
       const label = `<label for="field-${field.key}">${escapeHtml(field.label)}${field.required ? " *" : ""}</label>`;
       let control;
       if (field.type === "select" || field.type === "relation") control = makeSelect(field, value);
       else if (field.type === "textarea") control = `<textarea name="${field.key}" id="field-${field.key}" ${field.required ? "required" : ""} maxlength="1200">${escapeHtml(value)}</textarea>`;
-      else control = `<input name="${field.key}" id="field-${field.key}" type="${field.type}" value="${escapeHtml(value)}" ${field.required ? "required" : ""} ${field.min ? `min="${field.min}"` : ""} ${field.step ? `step="${field.step}"` : ""} maxlength="240">`;
+      else control = `<input name="${field.key}" id="field-${field.key}" type="${field.type}" value="${escapeHtml(value)}" ${field.required ? "required" : ""} ${field.readonly ? "readonly" : ""} ${field.min ? `min="${field.min}"` : ""} ${field.step ? `step="${field.step}"` : ""} maxlength="240">`;
       return `<div class="field ${field.full ? "full" : ""}">${label}${control}${field.help ? `<span class="help-text">${escapeHtml(field.help)}</span>` : ""}</div>`;
     }).join("");
+    if (entity === "proposals" && id && record.status === "Aceita" && !state.projects.some((project) => project.proposalId === record.id)) {
+      document.querySelector("#form-fields").insertAdjacentHTML("beforeend", `<div class="field full"><button type="button" class="button button-quiet" data-create-project-from-proposal="${escapeHtml(record.id)}">Criar projeto a partir desta proposta</button></div>`);
+    }
     dialog.showModal();
     dialog.querySelector("input,select,textarea")?.focus();
   }
@@ -334,11 +399,69 @@
     return record;
   }
 
+  function syncRelatedFields(changedName) {
+    const form = document.querySelector("#record-form");
+    const clientSelect = form.elements.clientId;
+    const proposalSelect = form.elements.proposalId;
+    const projectSelect = form.elements.projectId;
+    if (activeEntity === "projects" && changedName === "proposalId" && proposalSelect?.value) {
+      const proposal = getById("proposals", proposalSelect.value);
+      if (proposal) {
+        if (clientSelect) clientSelect.value = proposal.clientId || "";
+        const title = form.elements.title;
+        if (title && !title.value.trim()) title.value = proposal.service || "";
+        const price = form.elements.price;
+        if (price && price.value === "" && proposal.value !== "") price.value = proposal.value;
+      }
+    }
+    if (activeEntity === "tasks" && changedName === "projectId" && projectSelect?.value) {
+      const project = getById("projects", projectSelect.value);
+      if (project && clientSelect) clientSelect.value = project.clientId || "";
+    }
+    if (activeEntity === "tasks" && changedName === "clientId" && projectSelect?.value) {
+      const project = getById("projects", projectSelect.value);
+      if (project && project.clientId !== clientSelect?.value) projectSelect.value = "";
+    }
+  }
+
+  function createProjectFromProposal(proposalId) {
+    const proposal = getById("proposals", proposalId);
+    if (!proposal || proposal.status !== "Aceita") return;
+    if (state.projects.some((project) => project.proposalId === proposalId)) {
+      showNotice("Já existe um projeto vinculado a esta proposta.", true);
+      return;
+    }
+    dialog.close();
+    openForm("projects");
+    const form = document.querySelector("#record-form");
+    if (form.elements.clientId) form.elements.clientId.value = proposal.clientId || "";
+    if (form.elements.proposalId) form.elements.proposalId.value = proposal.id;
+    if (form.elements.title) form.elements.title.value = proposal.service || "";
+    if (form.elements.price && proposal.value !== "") form.elements.price.value = proposal.value;
+    if (form.elements.status) form.elements.status.value = "Aguardando início";
+  }
+
   function saveForm(event) {
     event.preventDefault();
     if (!activeEntity || !event.currentTarget.reportValidity()) return;
     const current = editingId ? getById(activeEntity, editingId) : null;
     const record = collectRecord(event.currentTarget, activeEntity, current);
+    const previousState = JSON.stringify(state);
+    if (!editingId && ["clients", "proposals", "projects"].includes(activeEntity)) {
+      const key = activeEntity === "clients" ? "code" : (activeEntity === "proposals" ? "number" : "code");
+      record[key] = nextCode(activeEntity);
+      advanceSequence(activeEntity, record[key]);
+    }
+    if (activeEntity === "proposals" && !record.date) record.date = today();
+    if (activeEntity === "projects" && record.status === "Concluído" && !record.deliveredDate) record.deliveredDate = today();
+    if (activeEntity === "tasks" && record.projectId) {
+      const linkedProject = getById("projects", record.projectId);
+      if (linkedProject && !record.clientId) record.clientId = linkedProject.clientId;
+      if (linkedProject && record.clientId !== linkedProject.clientId) {
+        showNotice("A tarefa e o projeto precisam pertencer ao mesmo cliente.", true);
+        return;
+      }
+    }
     if (activeEntity === "projects" && Number(record.paid || 0) > Number(record.price || 0)) {
       showNotice("O valor recebido não pode ser maior que o valor contratado.", true);
       return;
@@ -367,7 +490,10 @@
     } else {
       state[activeEntity].push(record);
     }
-    if (!saveState()) return;
+    if (!saveState()) {
+      Object.assign(state, JSON.parse(previousState));
+      return;
+    }
     dialog.close();
     showNotice(`${entityNames[activeEntity]} ${editingId ? "atualizado" : "salvo"} com sucesso.`);
     render();
@@ -424,6 +550,8 @@
       validateBackup(backup);
       if (!window.confirm("Restaurar este backup substituirá todos os registros atuais. Faça um backup atual antes de continuar. Deseja restaurar?")) return;
       for (const entity of entities) state[entity] = backup[entity];
+      state.sequences = normalizeSequences(backup).sequences;
+      migrateLegacyCodes();
       storageReady = true;
       if (!saveState()) return;
       render();
@@ -471,12 +599,17 @@
     if (edit) openForm(edit.dataset.edit, edit.dataset.id);
     const remove = event.target.closest("[data-delete]");
     if (remove) deleteRecord(remove.dataset.delete, remove.dataset.id);
+    const createProject = event.target.closest("[data-create-project-from-proposal]");
+    if (createProject) createProjectFromProposal(createProject.dataset.createProjectFromProposal);
     const exportCsvButton = event.target.closest("[data-export-csv]");
     if (exportCsvButton) exportCsv(exportCsvButton.dataset.exportCsv);
   });
 
   document.querySelectorAll("[data-search]").forEach((input) => input.addEventListener("input", renderTables));
   document.querySelector("#record-form").addEventListener("submit", saveForm);
+  document.querySelector("#record-form").addEventListener("change", (event) => {
+    if (event.target.matches("select[name=proposalId], select[name=projectId], select[name=clientId]")) syncRelatedFields(event.target.name);
+  });
   document.querySelector("#close-dialog").addEventListener("click", () => dialog.close());
   document.querySelector("#cancel-dialog").addEventListener("click", () => dialog.close());
   document.querySelector("#export-backup").addEventListener("click", exportBackup);
@@ -486,5 +619,6 @@
     event.currentTarget.value = "";
   });
 
+  if (storageReady && migrateLegacyCodes()) saveState();
   render();
 })();
