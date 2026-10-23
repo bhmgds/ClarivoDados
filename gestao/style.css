@@ -211,3 +211,20 @@ td.primary-cell { color: var(--navy); font-weight: 650; }
 .compact-item-link:hover { background: #f8fafd; }
 .compact-item-link:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; border-radius: 6px; }
 .compact-item-link .compact-title, .compact-item-link .compact-meta { display: block; }
+
+
+/* Alinha os controles de backup, inclusive o label usado para selecionar arquivo. */
+.top-actions .button,
+.help-actions .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.2;
+  text-decoration: none;
+}
+
+@media (max-width: 360px) {
+  .topbar { height: auto; min-height: 57px; padding: 8px 0; gap: 8px; }
+  .top-actions { flex-wrap: wrap; justify-content: flex-end; }
+  .top-actions .button { min-height: 32px; padding: 0 8px; font-size: 10px; }
+}
