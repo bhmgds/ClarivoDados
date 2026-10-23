@@ -329,14 +329,14 @@
     limit.setDate(limit.getDate() + 14);
     const limitDate = dateKey(limit);
     const taskReminders = state.tasks.filter((task) => task.status !== "Concluída" && task.dueDate && task.dueDate <= limitDate)
-      .map((task) => ({ title: task.title, subtitle: `${clientName(task.clientId)} · ${task.priority || "Normal"}`, date: task.dueDate }));
+      .map((task) => ({ title: task.title, subtitle: `${clientName(task.clientId)} · ${task.priority || "Normal"}`, date: task.dueDate, entity: "tasks", id: task.id }));
     const clientReminders = state.clients.filter((client) => !["Sem avanço"].includes(client.stage) && client.nextFollowUp && client.nextFollowUp <= limitDate)
-      .map((client) => ({ title: `Acompanhar ${client.company}`, subtitle: client.contact || "Contato comercial", date: client.nextFollowUp }));
+      .map((client) => ({ title: `Acompanhar ${client.company}`, subtitle: client.contact || "Contato comercial", date: client.nextFollowUp, entity: "clients", id: client.id }));
     const due = [...taskReminders, ...clientReminders].sort((a, b) => a.date.localeCompare(b.date)).slice(0, 6);
     const dueList = document.querySelector("#due-tasks");
     dueList.innerHTML = due.length ? due.map((task) => {
       const overdue = task.date < current;
-      return `<div class="compact-item"><div><div class="compact-title">${escapeHtml(task.title)}</div><div class="compact-meta">${escapeHtml(task.subtitle)}</div></div><div class="compact-date ${overdue ? "overdue" : ""}">${overdue ? "Atrasada · " : ""}${formatDate(task.date)}</div></div>`;
+      return `<button type="button" class="compact-item compact-item-link" data-open-entity="${task.entity}" data-open-id="${escapeHtml(task.id)}"><span><span class="compact-title">${escapeHtml(task.title)}</span><span class="compact-meta">${escapeHtml(task.subtitle)}</span></span><span class="compact-date ${overdue ? "overdue" : ""}">${overdue ? "Atrasada · " : ""}${formatDate(task.date)}</span></button>`;
     }).join("") : `<div class="empty-state">Sem tarefas vencidas ou próximas. Registre follow-ups na área “Próximos passos”.</div>`;
 
     const proposalStages = ["Rascunho", "Enviada", "Em negociação", "Aceita", "Recusada", "Expirada"];
@@ -462,6 +462,16 @@
         showNotice("A tarefa e o projeto precisam pertencer ao mesmo cliente.", true);
         return;
       }
+    }
+    if (activeEntity === "projects" && record.startDate && record.dueDate && record.dueDate < record.startDate) {
+      showNotice("O prazo do projeto não pode ser anterior à data de início.", true);
+      Object.assign(state, JSON.parse(previousState));
+      return;
+    }
+    if (activeEntity === "proposals" && record.date && record.validUntil && record.validUntil < record.date) {
+      showNotice("A validade da proposta não pode ser anterior à data da proposta.", true);
+      Object.assign(state, JSON.parse(previousState));
+      return;
     }
     if (activeEntity === "projects" && Number(record.paid || 0) > Number(record.price || 0)) {
       showNotice("O valor recebido não pode ser maior que o valor contratado.", true);
@@ -613,6 +623,8 @@
     if (edit) openForm(edit.dataset.edit, edit.dataset.id);
     const remove = event.target.closest("[data-delete]");
     if (remove) deleteRecord(remove.dataset.delete, remove.dataset.id);
+    const openEntity = event.target.closest("[data-open-entity]");
+    if (openEntity) openForm(openEntity.dataset.openEntity, openEntity.dataset.openId);
     const createProject = event.target.closest("[data-create-project-from-proposal]");
     if (createProject) createProjectFromProposal(createProject.dataset.createProjectFromProposal);
     const exportCsvButton = event.target.closest("[data-export-csv]");
