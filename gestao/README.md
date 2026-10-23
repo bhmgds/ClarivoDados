@@ -14,9 +14,9 @@ O navegador abrirá `http://127.0.0.1:8766`. Mantenha o terminal aberto enquanto
 
 ## Fluxo de trabalho
 
-1. Cadastre a empresa e o contato em **Contatos**; defina a etapa e a próxima data de acompanhamento.
-2. Registre cada orçamento em **Propostas**, com o mesmo número de referência do PDF, valor, validade, status e caminho do arquivo personalizado.
-3. Quando fechar, crie um **Projeto** com prazo, valor, recebimentos e caminho da pasta de trabalho.
+1. Cadastre a empresa e o contato em **Contatos**; o sistema gera um código `CLI-NNNN`. Defina a etapa e a próxima data de acompanhamento.
+2. Registre cada orçamento em **Propostas**. A referência `PROP-AAAA-NNNN` é gerada automaticamente; use-a no PDF. Preencha valor, validade, status e caminho do arquivo.
+3. Ao aceitar uma proposta, abra-a e use **Criar projeto a partir desta proposta**. Cliente, proposta, serviço e valor são sugeridos; revise prazo e demais dados antes de salvar. Projetos recebem um código `PROJ-AAAA-NNNN`.
 4. Registre follow-ups em **Próximos passos**. O painel mostra os atrasados e os que vencem nos próximos 14 dias.
 5. Baixe periodicamente um **backup JSON** e exporte CSVs se quiser fazer análises no Excel.
 
