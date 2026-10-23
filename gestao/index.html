@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#102341">
+  <link rel="icon" type="image/png" href="./assets/favicon.png">
+  <title>Gestão Clarivo — CRM local</title>
+  <link rel="stylesheet" href="./style.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#" aria-label="Clarivo Gestão">
+        <img src="./assets/clarivo-mark.png" alt="">
+        <span><strong>Clarivo</strong><small>gestão local</small></span>
+      </a>
+      <nav class="main-nav" aria-label="Navegação principal">
+        <button class="nav-link active" data-view="dashboard"><span class="nav-icon">⌂</span>Visão geral</button>
+        <button class="nav-link" data-view="clients"><span class="nav-icon">◉</span>Contatos</button>
+        <button class="nav-link" data-view="proposals"><span class="nav-icon">▤</span>Propostas</button>
+        <button class="nav-link" data-view="projects"><span class="nav-icon">▦</span>Projetos</button>
+        <button class="nav-link" data-view="tasks"><span class="nav-icon">✓</span>Próximos passos</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="local-badge"><span></span> Seus dados ficam neste navegador</div>
+        <button class="nav-link" data-view="help"><span class="nav-icon">?</span>Como usar</button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div class="mobile-brand"><img src="./assets/clarivo-mark.png" alt=""><strong>Clarivo Gestão</strong></div>
+        <div id="breadcrumb" class="breadcrumb">Painel / Visão geral</div>
+        <div class="top-actions">
+          <button class="button button-quiet" id="export-backup">Baixar backup</button>
+          <label class="button button-quiet file-button" for="import-backup">Restaurar backup</label>
+          <input id="import-backup" type="file" accept="application/json,.json" hidden>
+        </div>
+      </header>
+
+      <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+
+      <section class="view active" id="view-dashboard">
+        <div class="page-heading">
+          <div><p class="eyebrow">PAINEL DE CONTROLE</p><h1>Visão geral</h1><p class="subtitle">Acompanhe oportunidades, entregas e o que merece sua atenção.</p></div>
+          <button class="button button-primary" data-create="tasks">＋ Registrar próximo passo</button>
+        </div>
+        <div class="metric-grid" id="metrics"></div>
+        <div class="dashboard-grid">
+          <article class="panel">
+            <div class="panel-heading"><div><h2>Próximas ações</h2><p>Em atraso ou com vencimento nos próximos 14 dias</p></div><button class="text-button" data-view="tasks">Ver todas</button></div>
+            <div id="due-tasks" class="compact-list"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-heading"><div><h2>Pipeline de propostas</h2><p>Valores e status atuais</p></div><button class="text-button" data-view="proposals">Abrir propostas</button></div>
+            <div id="pipeline" class="pipeline"></div>
+          </article>
+        </div>
+        <div class="privacy-note"><strong>Privacidade em primeiro lugar.</strong> Use este controle apenas para informações comerciais mínimas. E-mail e telefone de trabalho também podem identificar uma pessoa. Não registre dados sensíveis, documentos, credenciais nem bases de clientes. Faça backups e guarde-os em local protegido.</div>
+      </section>
+
+      <section class="view" id="view-clients">
+        <div class="page-heading">
+          <div><p class="eyebrow">RELACIONAMENTO</p><h1>Contatos</h1><p class="subtitle">Leads, clientes e o próximo acompanhamento.</p></div>
+          <button class="button button-primary" data-create="clients">＋ Novo contato</button>
+        </div>
+        <div class="panel table-panel">
+          <div class="table-toolbar"><label class="search-box"><span>⌕</span><input type="search" placeholder="Buscar empresa, contato ou etapa…" data-search="clients"></label><button class="button button-quiet" data-export-csv="clients">Exportar CSV</button></div>
+          <div class="table-wrap"><table><thead id="head-clients"></thead><tbody id="body-clients"></tbody></table></div>
+          <div class="table-footer" id="footer-clients"></div>
+        </div>
+      </section>
+
+      <section class="view" id="view-proposals">
+        <div class="page-heading">
+          <div><p class="eyebrow">VENDAS</p><h1>Propostas</h1><p class="subtitle">Registre escopo, valor, validade e resultado de cada proposta.</p></div>
+          <button class="button button-primary" data-create="proposals">＋ Nova proposta</button>
+        </div>
+        <div class="panel table-panel">
+          <div class="table-toolbar"><label class="search-box"><span>⌕</span><input type="search" placeholder="Buscar cliente, serviço ou status…" data-search="proposals"></label><button class="button button-quiet" data-export-csv="proposals">Exportar CSV</button></div>
+          <div class="table-wrap"><table><thead id="head-proposals"></thead><tbody id="body-proposals"></tbody></table></div>
+          <div class="table-footer" id="footer-proposals"></div>
+        </div>
+      </section>
+
+      <section class="view" id="view-projects">
+        <div class="page-heading">
+          <div><p class="eyebrow">ENTREGA</p><h1>Projetos</h1><p class="subtitle">Acompanhe prazo, status, recebimentos e local dos documentos.</p></div>
+          <button class="button button-primary" data-create="projects">＋ Novo projeto</button>
+        </div>
+        <div class="panel table-panel">
+          <div class="table-toolbar"><label class="search-box"><span>⌕</span><input type="search" placeholder="Buscar projeto, cliente ou status…" data-search="projects"></label><button class="button button-quiet" data-export-csv="projects">Exportar CSV</button></div>
+          <div class="table-wrap"><table><thead id="head-projects"></thead><tbody id="body-projects"></tbody></table></div>
+          <div class="table-footer" id="footer-projects"></div>
+        </div>
+      </section>
+
+      <section class="view" id="view-tasks">
+        <div class="page-heading">
+          <div><p class="eyebrow">ROTINA</p><h1>Próximos passos</h1><p class="subtitle">Registre follow-ups e tarefas pontuais para não perder o fio.</p></div>
+          <button class="button button-primary" data-create="tasks">＋ Nova tarefa</button>
+        </div>
+        <div class="panel table-panel">
+          <div class="table-toolbar"><label class="search-box"><span>⌕</span><input type="search" placeholder="Buscar tarefa, cliente ou status…" data-search="tasks"></label><button class="button button-quiet" data-export-csv="tasks">Exportar CSV</button></div>
+          <div class="table-wrap"><table><thead id="head-tasks"></thead><tbody id="body-tasks"></tbody></table></div>
+          <div class="table-footer" id="footer-tasks"></div>
+        </div>
+      </section>
+
+      <section class="view" id="view-help">
+        <div class="page-heading"><div><p class="eyebrow">COMECE POR AQUI</p><h1>Como usar</h1><p class="subtitle">Um controle leve para tocar a Clarivo sem contratar uma plataforma.</p></div></div>
+        <div class="help-grid">
+          <article class="panel help-card"><span class="help-number">01</span><h2>Cadastre um contato</h2><p>Registre empresa, pessoa de contato, origem, etapa comercial e a próxima data de acompanhamento.</p></article>
+          <article class="panel help-card"><span class="help-number">02</span><h2>Acompanhe a proposta</h2><p>Associe uma proposta ao contato. Anote valor, validade, status e o caminho do arquivo da proposta preenchida.</p></article>
+          <article class="panel help-card"><span class="help-number">03</span><h2>Organize a execução</h2><p>Quando fechar, crie um projeto, acompanhe prazo, saldo e caminho dos documentos. Use tarefas para follow-ups.</p></article>
+          <article class="panel help-card"><span class="help-number">04</span><h2>Faça backup</h2><p>Baixe um backup JSON periodicamente e antes de trocar de navegador ou computador. Restaurar substitui os registros atuais.</p></article>
+        </div>
+        <article class="panel help-detail">
+          <h2>Estrutura de pastas sugerida</h2>
+          <p>Guarde os documentos do trabalho em pastas locais separadas por cliente e projeto. No campo “Pasta dos documentos”, registre apenas o caminho da pasta — não anexe bases nem arquivos pessoais ao sistema.</p>
+          <pre>Clientes/
+  Empresa - Projeto - AAAA-MM/
+    01-Comercial/
+    02-Contrato/
+    03-Recebidos/       (acesso restrito e descarte no prazo acordado)
+    04-Entregas/
+    05-Financeiro/</pre>
+          <h2>Cuidados importantes</h2>
+          <ul>
+            <li>O sistema funciona localmente e não envia dados para serviços externos. Os dados ficam no armazenamento deste navegador e perfil do computador.</li>
+            <li>O armazenamento do navegador <strong>não é criptografado pelo aplicativo</strong>. Use um computador com conta protegida e criptografia de disco; não use em computador compartilhado.</li>
+            <li>E-mail e telefone de trabalho também podem ser dados pessoais: registre só o necessário. Não guarde CPF/CNPJ de pessoas, dados bancários, senhas, dados sensíveis ou arquivos de clientes aqui.</li>
+            <li>Mantenha apenas dados comerciais básicos e caminhos de documentos.</li>
+            <li>O backup JSON é legível e não criptografado. Proteja-o como informação confidencial e evite colocá-lo em pasta sincronizada ou compartilhada sem avaliar o acesso.</li>
+            <li>Este é um controle operacional simples, não substitui contrato, armazenamento seguro de arquivos, sistema contábil ou orientação jurídica.</li>
+          </ul>
+          <div class="help-actions"><button class="button button-primary" id="help-export">Baixar backup agora</button><label class="button button-quiet file-button" for="import-backup">Restaurar backup</label><button class="button button-quiet" data-view="dashboard">Voltar ao painel</button></div>
+        </article>
+      </section>
+
+      <footer class="app-footer">Clarivo Dados · Controle local de relacionamento e projetos</footer>
+    </main>
+  </div>
+
+  <dialog id="record-dialog" class="record-dialog">
+    <form id="record-form" method="dialog">
+      <div class="dialog-heading"><div><p class="eyebrow" id="form-eyebrow">REGISTRO</p><h2 id="form-title">Novo registro</h2></div><button type="button" class="icon-button" id="close-dialog" aria-label="Fechar">×</button></div>
+      <div id="form-fields" class="form-grid"></div>
+      <div class="dialog-actions"><button type="button" class="button button-quiet" id="cancel-dialog">Cancelar</button><button type="submit" class="button button-primary">Salvar registro</button></div>
+    </form>
+  </dialog>
+</body>
+</html>
