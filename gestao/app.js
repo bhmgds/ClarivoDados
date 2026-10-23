@@ -99,6 +99,7 @@
       { key: "dueDate", label: "Prazo", date: true },
       { key: "price", label: "Contratado", money: true },
       { key: "paid", label: "Recebido", money: true },
+      { key: "balance", label: "Saldo a receber", money: true },
     ],
     tasks: [
       { key: "title", label: "Tarefa", primary: true },
@@ -290,7 +291,8 @@
       } else {
         body.innerHTML = filtered.map((item) => `<tr>${columns[entity].map((column) => {
           let value = item[column.key];
-          if (column.relation) value = relationLabel(column.relation, getById(column.relation, value));
+          if (column.key === "balance") value = Math.max(0, Number(item.price || 0) - Number(item.paid || 0));
+          else if (column.relation) value = relationLabel(column.relation, getById(column.relation, value));
           else if (column.date) value = formatDate(value);
           else if (column.money) value = formatMoney(value);
           const badge = column.badge ? `<span class="status-pill ${badgeTone(String(value || ""))}">${escapeHtml(value || "—")}</span>` : escapeHtml(value || "—");
@@ -450,7 +452,6 @@
     if (!editingId && ["clients", "proposals", "projects"].includes(activeEntity)) {
       const key = activeEntity === "clients" ? "code" : (activeEntity === "proposals" ? "number" : "code");
       record[key] = nextCode(activeEntity);
-      advanceSequence(activeEntity, record[key]);
     }
     if (activeEntity === "proposals" && !record.date) record.date = today();
     if (activeEntity === "projects" && record.status === "Concluído" && !record.deliveredDate) record.deliveredDate = today();
@@ -490,6 +491,10 @@
     } else {
       state[activeEntity].push(record);
     }
+    if (!editingId && ["clients", "proposals", "projects"].includes(activeEntity)) {
+      const key = activeEntity === "clients" ? "code" : (activeEntity === "proposals" ? "number" : "code");
+      advanceSequence(activeEntity, record[key]);
+    }
     if (!saveState()) {
       Object.assign(state, JSON.parse(previousState));
       return;
@@ -512,8 +517,12 @@
     }
     const record = getById(entity, id);
     if (!record || !window.confirm(`Excluir ${entityNames[entity].toLocaleLowerCase("pt-BR")} “${relationLabel(entity, record)}”? Esta ação não pode ser desfeita.`)) return;
+    const previousState = JSON.stringify(state);
     state[entity] = state[entity].filter((item) => item.id !== id);
-    if (!saveState()) return;
+    if (!saveState()) {
+      Object.assign(state, JSON.parse(previousState));
+      return;
+    }
     showNotice("Registro excluído.");
     render();
   }
@@ -549,11 +558,15 @@
       const backup = JSON.parse(await file.text());
       validateBackup(backup);
       if (!window.confirm("Restaurar este backup substituirá todos os registros atuais. Faça um backup atual antes de continuar. Deseja restaurar?")) return;
+      const previousState = JSON.stringify(state);
       for (const entity of entities) state[entity] = backup[entity];
       state.sequences = normalizeSequences(backup).sequences;
       migrateLegacyCodes();
       storageReady = true;
-      if (!saveState()) return;
+      if (!saveState()) {
+        Object.assign(state, JSON.parse(previousState));
+        return;
+      }
       render();
       showNotice("Backup restaurado com sucesso.");
     } catch (error) {
@@ -572,6 +585,7 @@
     const labels = columns[entity];
     const rows = state[entity].map((item) => labels.map((column) => {
       let value = item[column.key] ?? "";
+      if (column.key === "balance") value = Math.max(0, Number(item.price || 0) - Number(item.paid || 0));
       if (column.relation) value = relationLabel(column.relation, getById(column.relation, value));
       if (column.date) value = formatDate(value);
       if (column.money) value = Number(value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
